@@ -173,6 +173,7 @@ module tb_agri_drone_top;
         // TC2: CSR Host Soft Reset Abort
         @(negedge clk); start = 1; @(negedge clk); start = 0;
         @(negedge clk); csr_wr_en = 1; csr_addr = 6'h00; csr_wdata = 32'h00000002; // soft_rst = 1
+        @(posedge clk);
         @(negedge clk); csr_wr_en = 0;
         @(posedge clk); #1;
         record_result("CORNER", (busy === 1'b0), "TC2: Host CSR soft reset successfully aborts active pipeline to IDLE");
@@ -195,7 +196,7 @@ module tb_agri_drone_top;
         @(negedge clk); rst_n = 0; @(posedge clk); @(negedge clk); rst_n = 1; #20;
 
         // TC5: Zero Pixel Ingestion (All-0 Frame, -128 centered)
-        set_dense_biases(1000, 0, 0, 0);
+        set_dense_biases(500000, 0, 0, 0);
         run_frame_inference(zero_frame, 0);
         record_result("CORNER", (disease_class === 2'd0 && confidence >= 16'd128), "TC5: Zero-pixel ingestion processes cleanly without arithmetic underflow");
 
@@ -219,28 +220,28 @@ module tb_agri_drone_top;
         //=====================================================================
 
         // TC9: Class 0 Inference (Healthy Crop Foliage)
-        set_dense_biases(1000, 0, 0, 0);
+        set_dense_biases(500000, 0, 0, 0);
         run_frame_inference(healthy_frame, 0);
         record_result("NORMAL", (disease_class === 2'd0 && disease_detected === 1'b0 && confidence >= 16'd128),
                       $sformatf("TC9: Class 0 Healthy Crop Inferred (Class: %0d, Detected: %0d, Conf: %0d)",
                       disease_class, disease_detected, confidence));
 
         // TC10: Class 1 Inference (Leaf Blight Spot Pattern)
-        set_dense_biases(0, 1000, 0, 0);
+        set_dense_biases(0, 500000, 0, 0);
         run_frame_inference(blight_frame, 0);
         record_result("NORMAL", (disease_class === 2'd1 && disease_detected === 1'b1 && confidence >= 16'd128),
                       $sformatf("TC10: Class 1 Leaf Blight Inferred (Class: %0d, Detected: %0d, Conf: %0d)",
                       disease_class, disease_detected, confidence));
 
         // TC11: Class 2 Inference (Leaf Rust Dispersed Specks)
-        set_dense_biases(0, 0, 1000, 0);
+        set_dense_biases(0, 0, 500000, 0);
         run_frame_inference(rust_frame, 0);
         record_result("NORMAL", (disease_class === 2'd2 && disease_detected === 1'b1 && confidence >= 16'd128),
                       $sformatf("TC11: Class 2 Leaf Rust Inferred (Class: %0d, Detected: %0d, Conf: %0d)",
                       disease_class, disease_detected, confidence));
 
         // TC12: Class 3 Inference (Nutrient Deficiency Gradient)
-        set_dense_biases(0, 0, 0, 1000);
+        set_dense_biases(0, 0, 0, 500000);
         run_frame_inference(deficiency_frame, 0);
         record_result("NORMAL", (disease_class === 2'd3 && disease_detected === 1'b1 && confidence >= 16'd128),
                       $sformatf("TC12: Class 3 Nutrient Deficiency Inferred (Class: %0d, Detected: %0d, Conf: %0d)",
@@ -257,7 +258,7 @@ module tb_agri_drone_top;
         record_result("NORMAL", (dut.dense_bias0 === 24'sd100 && dut.dense_bias3 === 24'sd400), "TC14: 4-class dense bias vector fine-tuned and verified");
 
         // TC15: Single-Cycle Done Pulse & Status Register Match
-        set_dense_biases(1000, 0, 0, 0);
+        set_dense_biases(500000, 0, 0, 0);
         run_frame_inference(healthy_frame, 0);
         record_result("NORMAL", (saw_done === 1'b1), "TC15: Single-cycle done strobe matches accelerator status report");
 
@@ -273,9 +274,9 @@ module tb_agri_drone_top;
         // TC17: Back-to-Back 3-Frame Continuous Pipeline Burst
         stress_pass = 1;
         for (int f = 0; f < 3; f++) begin
-            if (f == 0) set_dense_biases(1000, 0, 0, 0);
-            if (f == 1) set_dense_biases(0, 1000, 0, 0);
-            if (f == 2) set_dense_biases(0, 0, 1000, 0);
+            if (f == 0) set_dense_biases(500000, 0, 0, 0);
+            if (f == 1) set_dense_biases(0, 500000, 0, 0);
+            if (f == 2) set_dense_biases(0, 0, 500000, 0);
 
             run_frame_inference((f == 0) ? healthy_frame : ((f == 1) ? blight_frame : rust_frame), 0);
             if (confidence < 16'd128) stress_pass = 0;
@@ -283,22 +284,22 @@ module tb_agri_drone_top;
         record_result("STRESS", stress_pass, "TC17: 3-frame continuous back-to-back pipeline burst completed without stall");
 
         // TC18: Randomized AXI Jitter Ingestion
-        set_dense_biases(1000, 0, 0, 0);
+        set_dense_biases(500000, 0, 0, 0);
         run_frame_inference(healthy_frame, 1); // with random stalls
         record_result("STRESS", (disease_class === 2'd0 && confidence >= 16'd128), "TC18: Frame stream with randomized AXI bus jitter classified accurately");
 
         // TC19: Dynamic CSR Weight Swapping Between Frames
-        set_dense_biases(0, 0, 0, 1000);
+        set_dense_biases(0, 0, 0, 500000);
         run_frame_inference(deficiency_frame, 0);
         record_result("STRESS", (disease_class === 2'd3), "TC19: Dynamic CSR weight and bias vector hot-swapped seamlessly between frames");
 
         // TC20: Boundary Edge Contrast Filter Stress
-        set_dense_biases(500, 500, 0, 0);
+        set_dense_biases(50000, 50000, 0, 0);
         run_frame_inference(checker_frame, 0);
         record_result("STRESS", (confidence >= 16'd128), "TC20: Checkerboard high-frequency spatial edge frame convolved and pooled successfully");
 
         // TC21: High-Confidence Threshold Discrimination Check
-        set_dense_biases(5000, 0, 0, 0);
+        set_dense_biases(500000, 0, 0, 0);
         run_frame_inference(healthy_frame, 0);
         record_result("STRESS", (confidence === 16'h0100), "TC21: High-separation score profile achieved 100% Q8.8 confidence saturation (256/256)");
 

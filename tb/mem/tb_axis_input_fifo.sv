@@ -77,6 +77,7 @@ module tb_axis_input_fifo;
         //---------------------------------------------------------------------
         @(negedge clk);
         s_axis_tdata = 8'hAA; s_axis_tvalid = 1;
+        @(posedge clk);
         @(negedge clk);
         rst_n = 0;
         @(posedge clk);
@@ -103,19 +104,20 @@ module tb_axis_input_fifo;
         //---------------------------------------------------------------------
         for (int i = 0; i < DEPTH; i++) begin
             @(negedge clk);
-            s_axis_tdata  = i;
+            s_axis_tdata  = i[7:0];
             s_axis_tvalid = 1;
+            @(posedge clk);
         end
-        @(posedge clk);
-        #1;
-        record_result("CORNER", (fifo_full === 1'b1 && s_axis_tready === 1'b0), "TC3: FIFO full de-asserts tready");
         @(negedge clk);
         s_axis_tvalid = 0;
+        #1;
+        record_result("CORNER", (fifo_full === 1'b1 && s_axis_tready === 1'b0), "TC3: FIFO full de-asserts tready");
 
         // Flush FIFO
         for (int i = 0; i < DEPTH; i++) begin
             @(negedge clk);
             m_ready = 1;
+            @(posedge clk);
         end
         @(negedge clk);
         m_ready = 0;
@@ -126,8 +128,9 @@ module tb_axis_input_fifo;
         //---------------------------------------------------------------------
         @(negedge clk);
         s_axis_tdata = 8'h55; s_axis_tvalid = 1;
+        @(posedge clk);
         @(negedge clk);
-        s_axis_tdata = 8'h66; m_ready = 1;
+        s_axis_tdata = 8'h66; s_axis_tvalid = 1; m_ready = 1;
         @(posedge clk);
         #1;
         record_result("CORNER", (fifo_count === 1'd1), "TC4: Simultaneous push and pop maintains exact count");
@@ -135,6 +138,7 @@ module tb_axis_input_fifo;
         s_axis_tvalid = 0; m_ready = 0;
         @(negedge clk);
         m_ready = 1;
+        @(posedge clk);
         @(negedge clk);
         m_ready = 0;
 
@@ -143,37 +147,46 @@ module tb_axis_input_fifo;
         //---------------------------------------------------------------------
         ping_pong_pass = 1;
         for (int i = 0; i < 5; i++) begin
+            // 1. Push single byte
             @(negedge clk);
             s_axis_tdata = 8'h10 + i; s_axis_tvalid = 1; m_ready = 0;
-            @(negedge clk);
-            s_axis_tvalid = 0; m_ready = 1;
             @(posedge clk);
+            @(negedge clk);
+            s_axis_tvalid = 0;
+
+            // 2. Sample and Pop
             #1;
-            if (m_data !== (8'h10 + i) || m_valid !== 1'b1) ping_pong_pass = 0;
+            if (m_valid !== 1'b1 || m_data !== (8'h10 + i)) ping_pong_pass = 0;
+            m_ready = 1;
+            @(posedge clk);
+            @(negedge clk);
+            m_ready = 0;
         end
-        @(negedge clk);
-        m_ready = 0;
         record_result("CORNER", ping_pong_pass, "TC5: Single-cycle ping-pong verified");
 
         //---------------------------------------------------------------------
         // NORMAL TEST 6: Continuous 8-byte streaming burst
         //---------------------------------------------------------------------
         burst_pass = 1;
+        // Write 8 bytes into FIFO
         for (int i = 0; i < 8; i++) begin
             @(negedge clk);
             s_axis_tdata = 8'hA0 + i; s_axis_tvalid = 1; s_axis_tlast = 0;
+            @(posedge clk);
         end
         @(negedge clk);
         s_axis_tvalid = 0;
 
+        // Read and verify 8 bytes from FIFO
         for (int i = 0; i < 8; i++) begin
             #1;
             if (m_valid !== 1'b1 || m_data !== (8'hA0 + i)) burst_pass = 0;
             @(negedge clk);
             m_ready = 1;
+            @(posedge clk);
+            @(negedge clk);
+            m_ready = 0;
         end
-        @(negedge clk);
-        m_ready = 0;
         record_result("NORMAL", burst_pass, "TC6: Continuous 8-byte burst data integrity confirmed");
 
         //---------------------------------------------------------------------
@@ -181,12 +194,14 @@ module tb_axis_input_fifo;
         //---------------------------------------------------------------------
         @(negedge clk);
         s_axis_tdata = 8'hEE; s_axis_tlast = 1; s_axis_tvalid = 1;
+        @(posedge clk);
         @(negedge clk);
         s_axis_tvalid = 0; s_axis_tlast = 0;
         #1;
         record_result("NORMAL", (m_data === 8'hEE && m_last === 1'b1 && m_valid === 1'b1), "TC7: tlast boundary correctly transferred");
         @(negedge clk);
         m_ready = 1;
+        @(posedge clk);
         @(negedge clk);
         m_ready = 0;
 
@@ -201,33 +216,49 @@ module tb_axis_input_fifo;
             automatic bit do_pop    = $urandom_range(0, 1);
             automatic logic [7:0] d = $urandom_range(0, 255);
             automatic logic       l = ($urandom_range(0, 10) == 0);
-
-            // Check current output vs golden queue if pop is requested
-            #1;
-            if (m_valid && golden_q.size() > 0) begin
-                if ({m_last, m_data} !== golden_q[0]) begin
-                    stress_pass = 0;
-                end
-            end
+            automatic bit was_ready;
+            automatic bit was_valid;
 
             @(negedge clk);
             s_axis_tvalid = do_push;
             s_axis_tdata  = d;
             s_axis_tlast  = l;
             m_ready       = do_pop;
+            #1;
+            was_ready = s_axis_tready;
+            was_valid = m_valid;
 
-            // Maintain golden model
-            if (do_push && s_axis_tready) begin
+            @(posedge clk);
+            if (do_push && was_ready) begin
                 golden_q.push_back({l, d});
             end
-            if (do_pop && m_valid) begin
-                void'(golden_q.pop_front());
+            if (do_pop && was_valid) begin
+                if (golden_q.size() > 0) begin
+                    void'(golden_q.pop_front());
+                end
             end
         end
 
+        // Drain remaining elements in FIFO and compare against golden queue
         @(negedge clk);
         s_axis_tvalid = 0;
         m_ready = 0;
+        #1;
+        while (golden_q.size() > 0 && m_valid) begin
+            automatic logic [8:0] exp_drain = golden_q.pop_front();
+            #1;
+            if ({m_last, m_data} !== exp_drain) begin
+                stress_pass = 0;
+            end
+            @(negedge clk);
+            m_ready = 1;
+            @(posedge clk);
+            @(negedge clk);
+            m_ready = 0;
+        end
+
+        if (golden_q.size() != 0 || m_valid != 0) stress_pass = 0;
+
         record_result("STRESS", stress_pass, "TC8: 200 randomized stimulus operations matched golden queue");
 
         #20;

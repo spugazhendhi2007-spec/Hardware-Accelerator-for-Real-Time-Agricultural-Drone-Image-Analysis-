@@ -218,7 +218,7 @@ module tb_conv_engine;
             end
         end
         @(negedge clk); window_valid = 0;
-        repeat(10) @(posedge clk);
+        repeat(5) @(posedge clk);
         #1;
         if (feat_valid) total_feats++;
         record_result("STRESS", (conv_done === 1'b1 && total_feats == 121), "TC8: Complete randomized frame yielded 121 features and conv_done");

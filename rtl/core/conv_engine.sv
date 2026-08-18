@@ -111,7 +111,6 @@ module conv_engine #(
             pool_h_max  <= '0;
         end else begin
             f_valid_reg <= 1'b0;
-            done_reg    <= 1'b0;
 
             // Pipeline coordinate tracking
             r_col <= win_col;

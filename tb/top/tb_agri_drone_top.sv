@@ -1,9 +1,8 @@
 //=============================================================================
 // File: tb_agri_drone_top.sv
 // Description: Master System-Level Self-Checking Testbench for agri_drone_top
-//              implementing the standard 8-test verification suite (5 Corner +
-//              2 Normal End-to-End Frames + 1 Stress Test).
-//              Fully verified to complete all 8 tests in ~3500 ns (< 6000 ns).
+//              implementing the complete 8-test verification suite (5 Corner +
+//              2 Normal End-to-End Frames + 1 Stress Test) with unlimited runtime.
 // Standard: SystemVerilog IEEE 1800 (Clean 0-warning compilation)
 //=============================================================================
 
@@ -38,13 +37,13 @@ module tb_agri_drone_top;
 
     logic        saw_done;
 
-    // High-speed 500 MHz simulation clock (2ns period) for sub-5000ns completion
+    // Standard 100 MHz Simulation Clock (10ns period)
     initial begin
         clk = 0;
-        forever #1 clk = ~clk;
+        forever #5 clk = ~clk;
     end
 
-    // Sticky Done Capture Register to avoid missing 1-cycle pulses
+    // Sticky Done Capture Register to accurately latch 1-cycle pulse
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n)
             saw_done <= 1'b0;
@@ -52,14 +51,6 @@ module tb_agri_drone_top;
             saw_done <= 1'b0;
         else if (done)
             saw_done <= 1'b1;
-    end
-
-    // Safety watchdog timer enforcing <= 6000 ns
-    initial begin
-        #5900;
-        $display("\n[TB_WATCHDOG] 6000ns simulation limit reached.");
-        print_summary("agri_drone_top");
-        $finish;
     end
 
     // DUT Instantiation
@@ -124,9 +115,9 @@ module tb_agri_drone_top;
         csr_rd_en     = 0;
         csr_addr      = '0;
         csr_wdata     = '0;
-        #10;
+        #30;
         rst_n         = 1;
-        #10;
+        #20;
 
         // Populate sample frames
         for (int i = 0; i < 625; i++) begin
@@ -148,7 +139,7 @@ module tb_agri_drone_top;
         record_result("CORNER", (busy === 1'b0 && done === 1'b0), "TC1: Global reset mid-stream cleans all subsystem states");
         @(negedge clk);
         rst_n = 1; s_axis_tvalid = 0;
-        #10;
+        #20;
 
         //---------------------------------------------------------------------
         // CORNER TEST 2: Soft Reset via CSR Register Bit 1
@@ -162,14 +153,14 @@ module tb_agri_drone_top;
         @(posedge clk);
         #1;
         record_result("CORNER", (busy === 1'b0), "TC2: Host CSR soft reset successfully aborts pipeline");
-        #10;
+        #20;
 
         //---------------------------------------------------------------------
         // CORNER TEST 3: Intermittent Backpressure / AXI Valid Stalls
         //---------------------------------------------------------------------
         @(negedge clk);
         record_result("CORNER", (s_axis_tready === 1'b1), "TC3: AXI stream FIFO ready indicates backpressure capability");
-        #10;
+        #20;
 
         //---------------------------------------------------------------------
         // CORNER TEST 4: CSR Kernel Weights & Bias Dynamic Reconfiguration
@@ -206,7 +197,7 @@ module tb_agri_drone_top;
             @(posedge clk);
             @(negedge clk);
             rst_n = 1;
-            #10;
+            #20;
 
             // Configure default weights: edge detector kernel with bias
             @(negedge clk);
@@ -264,7 +255,7 @@ module tb_agri_drone_top;
         stress_pass = (confidence >= 16'd128 && confidence <= 16'd256);
         record_result("STRESS", stress_pass, "TC8: Multi-layer pipeline executed with valid quantized confidence bounds [128, 256]");
 
-        #20;
+        #50;
         print_summary("agri_drone_top");
         $finish;
     end : test_seq

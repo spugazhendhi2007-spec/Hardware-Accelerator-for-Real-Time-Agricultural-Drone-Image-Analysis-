@@ -61,7 +61,6 @@ module dense_classifier #(
             count_reg <= '0;
             done_reg  <= 1'b0;
         end else begin
-            done_reg <= 1'b0;
             if (feat_valid) begin
                 acc0 <= acc0 + p0;
                 acc1 <= acc1 + p1;

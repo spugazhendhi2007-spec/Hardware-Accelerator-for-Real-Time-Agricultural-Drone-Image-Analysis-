@@ -185,10 +185,11 @@ module tb_conv_engine;
             for (int c = 0; c < 23; c++) begin
                 @(negedge clk);
                 window_valid = 1; win_row = r; win_col = c;
-                if (r == 4 && c == 4)
+                if (r == 4 && c == 4) begin
                     p0 = 8'd50; p1 = 8'd50; p2 = 8'd50; p3 = 8'd50; p4 = 8'd250; p5 = 8'd50; p6 = 8'd50; p7 = 8'd50; p8 = 8'd50;
-                else
+                end else begin
                     p0 = 8'd100; p1 = 8'd100; p2 = 8'd100; p3 = 8'd100; p4 = 8'd100; p5 = 8'd100; p6 = 8'd100; p7 = 8'd100; p8 = 8'd100;
+                end
                 @(posedge clk);
                 #1;
                 if (feat_valid && feat_data > 16'sd500) spot_detected = 1;

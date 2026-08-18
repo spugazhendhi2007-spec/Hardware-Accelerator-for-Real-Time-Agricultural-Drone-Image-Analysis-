@@ -1,89 +1,149 @@
 #==============================================================================
-# Cadence irun / Xcelium Simulation & Coverage Commands Master List
+# Cadence irun / Xcelium Simulation & Coverage Execution Guide
 # Project: Hardware Accelerator for Real-Time Agricultural Drone Image Analysis
-# Execute all commands from the work/ directory: cd work && <command>
 #==============================================================================
 
-# 0. Complete RTL Compilation Sanity Check (0 errors, 0 warnings verification)
- irun -sv -compile -messages -nocopyright \
-    ../rtl/defs/agri_drone_pkg.sv \
-    ../rtl/control/power_icg_cell.sv \
-    ../rtl/mem/axis_input_fifo.sv \
-    ../rtl/mem/image_buffer_25x25.sv \
-    ../rtl/mem/line_buffer_window_3x3.sv \
-    ../rtl/math/int8_mac_unit.sv \
-    ../rtl/math/pe_array_3x3.sv \
-    ../rtl/math/relu_activation.sv \
-    ../rtl/math/maxpool_2x2.sv \
-    ../rtl/core/conv_engine.sv \
-    ../rtl/core/dense_classifier.sv \
-    ../rtl/core/argmax_confidence.sv \
-    ../rtl/control/agri_drone_csr.sv \
-    ../rtl/control/agri_fsm_controller.sv \
-    ../rtl/top/agri_drone_top.sv
+#------------------------------------------------------------------------------
+# METHOD 1: AUTOMATED SHELL SCRIPT (RECOMMENDED - WORKS FROM ANY DIRECTORY)
+#------------------------------------------------------------------------------
+# Make executable:
+chmod +x scripts/run_sim.sh
 
-# 1. Power ICG Cell Testbench (5 Corner + 2 Normal + 1 Stress)
-cd work && irun -sv -access +rwc ../tb/tb_pkg.sv ../rtl/control/power_icg_cell.sv ../tb/control/tb_power_icg_cell.sv
+# Run individual testbenches:
+./scripts/run_sim.sh tb_power_icg_cell
+./scripts/run_sim.sh tb_axis_input_fifo
+./scripts/run_sim.sh tb_image_buffer_25x25
+./scripts/run_sim.sh tb_line_buffer_window_3x3
+./scripts/run_sim.sh tb_int8_mac_unit
+./scripts/run_sim.sh tb_pe_array_3x3
+./scripts/run_sim.sh tb_relu_activation
+./scripts/run_sim.sh tb_maxpool_2x2
+./scripts/run_sim.sh tb_conv_engine
+./scripts/run_sim.sh tb_dense_classifier
+./scripts/run_sim.sh tb_argmax_confidence
+./scripts/run_sim.sh tb_agri_drone_csr
+./scripts/run_sim.sh tb_agri_fsm_controller
+./scripts/run_sim.sh tb_agri_drone_top
 
-# 2. AXI-Stream Input FIFO Testbench (5 Corner + 2 Normal + 1 Stress)
-cd work && irun -sv -access +rwc ../tb/tb_pkg.sv ../rtl/mem/axis_input_fifo.sv ../tb/mem/tb_axis_input_fifo.sv
+# Run complete suite (all 14 testbenches sequentially):
+./scripts/run_sim.sh all
 
-# 3. 25x25 Image Buffer Testbench (5 Corner + 2 Normal + 1 Stress)
-cd work && irun -sv -access +rwc ../tb/tb_pkg.sv ../rtl/mem/image_buffer_25x25.sv ../tb/mem/tb_image_buffer_25x25.sv
 
-# 4. 3x3 Line Buffer Sliding Window Generator Testbench (5 Corner + 2 Normal + 1 Stress)
-cd work && irun -sv -access +rwc ../tb/tb_pkg.sv ../rtl/mem/line_buffer_window_3x3.sv ../tb/mem/tb_line_buffer_window_3x3.sv
+#------------------------------------------------------------------------------
+# METHOD 2: DIRECT EXECUTION FROM PROJECT ROOT (/mnt/rl-home/PUGAZH/drone_acc)
+#------------------------------------------------------------------------------
+# Ensure you are in the project root:
+cd /mnt/rl-home/PUGAZH/drone_acc
 
-# 5. INT8 MAC Unit Testbench (5 Corner + 2 Normal + 1 Stress)
-cd work && irun -sv -access +rwc ../tb/tb_pkg.sv ../rtl/math/int8_mac_unit.sv ../tb/math/tb_int8_mac_unit.sv
+# 0. RTL Compilation Sanity Check
+irun -sv -compile -messages -nocopyright \
+    rtl/defs/agri_drone_pkg.sv \
+    rtl/control/power_icg_cell.sv \
+    rtl/mem/axis_input_fifo.sv \
+    rtl/mem/image_buffer_25x25.sv \
+    rtl/mem/line_buffer_window_3x3.sv \
+    rtl/math/int8_mac_unit.sv \
+    rtl/math/pe_array_3x3.sv \
+    rtl/math/relu_activation.sv \
+    rtl/math/maxpool_2x2.sv \
+    rtl/core/conv_engine.sv \
+    rtl/core/dense_classifier.sv \
+    rtl/core/argmax_confidence.sv \
+    rtl/control/agri_drone_csr.sv \
+    rtl/control/agri_fsm_controller.sv \
+    rtl/top/agri_drone_top.sv
 
-# 6. 3x3 PE Array Testbench (5 Corner + 2 Normal + 1 Stress)
-cd work && irun -sv -access +rwc ../tb/tb_pkg.sv ../rtl/math/pe_array_3x3.sv ../tb/math/tb_pe_array_3x3.sv
+# 1. Power ICG Cell Testbench
+irun -sv -access +rwc tb/tb_pkg.sv rtl/control/power_icg_cell.sv tb/control/tb_power_icg_cell.sv
 
-# 7. ReLU Activation Unit Testbench (5 Corner + 2 Normal + 1 Stress)
-cd work && irun -sv -access +rwc ../tb/tb_pkg.sv ../rtl/math/relu_activation.sv ../tb/math/tb_relu_activation.sv
+# 2. AXI-Stream Input FIFO Testbench
+irun -sv -access +rwc tb/tb_pkg.sv rtl/mem/axis_input_fifo.sv tb/mem/tb_axis_input_fifo.sv
 
-# 8. 2x2 MaxPool Unit Testbench (5 Corner + 2 Normal + 1 Stress)
-cd work && irun -sv -access +rwc ../tb/tb_pkg.sv ../rtl/math/maxpool_2x2.sv ../tb/math/tb_maxpool_2x2.sv
+# 3. 25x25 Image Buffer Testbench
+irun -sv -access +rwc tb/tb_pkg.sv rtl/mem/image_buffer_25x25.sv tb/mem/tb_image_buffer_25x25.sv
 
-# 9. 2D Convolution Processing Engine Testbench (5 Corner + 2 Normal + 1 Stress)
-cd work && irun -sv -access +rwc ../tb/tb_pkg.sv ../rtl/defs/agri_drone_pkg.sv ../rtl/math/pe_array_3x3.sv ../rtl/core/conv_engine.sv ../tb/core/tb_conv_engine.sv
+# 4. 3x3 Line Buffer Sliding Window Generator Testbench
+irun -sv -access +rwc tb/tb_pkg.sv rtl/mem/line_buffer_window_3x3.sv tb/mem/tb_line_buffer_window_3x3.sv
 
-# 10. Dense Classification Layer Testbench (5 Corner + 2 Normal + 1 Stress)
-cd work && irun -sv -access +rwc ../tb/tb_pkg.sv ../rtl/core/dense_classifier.sv ../tb/core/tb_dense_classifier.sv
+# 5. INT8 MAC Unit Testbench
+irun -sv -access +rwc tb/tb_pkg.sv rtl/math/int8_mac_unit.sv tb/math/tb_int8_mac_unit.sv
 
-# 11. ArgMax & Confidence Estimator Testbench (5 Corner + 2 Normal + 1 Stress)
-cd work && irun -sv -access +rwc ../tb/tb_pkg.sv ../rtl/defs/agri_drone_pkg.sv ../rtl/core/argmax_confidence.sv ../tb/core/tb_argmax_confidence.sv
+# 6. 3x3 PE Array Testbench
+irun -sv -access +rwc tb/tb_pkg.sv rtl/math/pe_array_3x3.sv tb/math/tb_pe_array_3x3.sv
 
-# 12. Control & Status Register Bank Testbench (5 Corner + 2 Normal + 1 Stress)
-cd work && irun -sv -access +rwc ../tb/tb_pkg.sv ../rtl/control/agri_drone_csr.sv ../tb/control/tb_agri_drone_csr.sv
+# 7. ReLU Activation Unit Testbench
+irun -sv -access +rwc tb/tb_pkg.sv rtl/math/relu_activation.sv tb/math/tb_relu_activation.sv
 
-# 13. Master Sequencing FSM Controller Testbench (5 Corner + 2 Normal + 1 Stress)
-cd work && irun -sv -access +rwc ../tb/tb_pkg.sv ../rtl/defs/agri_drone_pkg.sv ../rtl/control/agri_fsm_controller.sv ../tb/control/tb_agri_fsm_controller.sv
+# 8. 2x2 MaxPool Unit Testbench
+irun -sv -access +rwc tb/tb_pkg.sv rtl/math/maxpool_2x2.sv tb/math/tb_maxpool_2x2.sv
+
+# 9. 2D Convolution Processing Engine Testbench
+irun -sv -access +rwc tb/tb_pkg.sv rtl/defs/agri_drone_pkg.sv rtl/math/pe_array_3x3.sv rtl/core/conv_engine.sv tb/core/tb_conv_engine.sv
+
+# 10. Dense Classification Layer Testbench
+irun -sv -access +rwc tb/tb_pkg.sv rtl/core/dense_classifier.sv tb/core/tb_dense_classifier.sv
+
+# 11. ArgMax & Confidence Estimator Testbench
+irun -sv -access +rwc tb/tb_pkg.sv rtl/defs/agri_drone_pkg.sv rtl/core/argmax_confidence.sv tb/core/tb_argmax_confidence.sv
+
+# 12. Control & Status Register Bank Testbench
+irun -sv -access +rwc tb/tb_pkg.sv rtl/control/agri_drone_csr.sv tb/control/tb_agri_drone_csr.sv
+
+# 13. Master Sequencing FSM Controller Testbench
+irun -sv -access +rwc tb/tb_pkg.sv rtl/defs/agri_drone_pkg.sv rtl/control/agri_fsm_controller.sv tb/control/tb_agri_fsm_controller.sv
 
 # 14. Master Top-Level System Testbench (5 Corner + 2 Normal + 1 Multi-Frame Stress)
-cd work && irun -sv -access +rwc \
-    ../tb/tb_pkg.sv \
-    ../rtl/defs/agri_drone_pkg.sv \
-    ../rtl/control/power_icg_cell.sv \
-    ../rtl/mem/axis_input_fifo.sv \
-    ../rtl/mem/image_buffer_25x25.sv \
-    ../rtl/mem/line_buffer_window_3x3.sv \
-    ../rtl/math/int8_mac_unit.sv \
-    ../rtl/math/pe_array_3x3.sv \
-    ../rtl/math/relu_activation.sv \
-    ../rtl/math/maxpool_2x2.sv \
-    ../rtl/core/conv_engine.sv \
-    ../rtl/core/dense_classifier.sv \
-    ../rtl/core/argmax_confidence.sv \
-    ../rtl/control/agri_drone_csr.sv \
-    ../rtl/control/agri_fsm_controller.sv \
-    ../rtl/top/agri_drone_top.sv \
-    ../tb/top/tb_agri_drone_top.sv
+irun -sv -access +rwc \
+    tb/tb_pkg.sv \
+    rtl/defs/agri_drone_pkg.sv \
+    rtl/control/power_icg_cell.sv \
+    rtl/mem/axis_input_fifo.sv \
+    rtl/mem/image_buffer_25x25.sv \
+    rtl/mem/line_buffer_window_3x3.sv \
+    rtl/math/int8_mac_unit.sv \
+    rtl/math/pe_array_3x3.sv \
+    rtl/math/relu_activation.sv \
+    rtl/math/maxpool_2x2.sv \
+    rtl/core/conv_engine.sv \
+    rtl/core/dense_classifier.sv \
+    rtl/core/argmax_confidence.sv \
+    rtl/control/agri_drone_csr.sv \
+    rtl/control/agri_fsm_controller.sv \
+    rtl/top/agri_drone_top.sv \
+    tb/top/tb_agri_drone_top.sv
 
-# 15. Complete Code & Functional Coverage Run (Statement, Branch, Toggle, FSM)
-cd work && irun -sv -access +rwc \
-    -coverage all -covdut agri_drone_top -covworkdir ../cov_work -covoverwrite \
+# 15. Code & Functional Coverage Run
+irun -sv -access +rwc \
+    -coverage all -covdut agri_drone_top -covworkdir cov_work -covoverwrite \
+    tb/tb_pkg.sv \
+    rtl/defs/agri_drone_pkg.sv \
+    rtl/control/power_icg_cell.sv \
+    rtl/mem/axis_input_fifo.sv \
+    rtl/mem/image_buffer_25x25.sv \
+    rtl/mem/line_buffer_window_3x3.sv \
+    rtl/math/int8_mac_unit.sv \
+    rtl/math/pe_array_3x3.sv \
+    rtl/math/relu_activation.sv \
+    rtl/math/maxpool_2x2.sv \
+    rtl/core/conv_engine.sv \
+    rtl/core/dense_classifier.sv \
+    rtl/core/argmax_confidence.sv \
+    rtl/control/agri_drone_csr.sv \
+    rtl/control/agri_fsm_controller.sv \
+    rtl/top/agri_drone_top.sv \
+    tb/top/tb_agri_drone_top.sv
+
+
+#------------------------------------------------------------------------------
+# METHOD 3: EXECUTION INSIDE WORK DIRECTORY (/mnt/rl-home/PUGAZH/drone_acc/work)
+#------------------------------------------------------------------------------
+cd /mnt/rl-home/PUGAZH/drone_acc/work
+
+# 1. Power ICG Cell Testbench
+irun -sv -access +rwc ../tb/tb_pkg.sv ../rtl/control/power_icg_cell.sv ../tb/control/tb_power_icg_cell.sv
+
+# 14. Master Top-Level System Testbench
+irun -sv -access +rwc \
     ../tb/tb_pkg.sv \
     ../rtl/defs/agri_drone_pkg.sv \
     ../rtl/control/power_icg_cell.sv \

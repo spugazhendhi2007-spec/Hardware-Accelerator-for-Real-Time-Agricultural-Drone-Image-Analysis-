@@ -175,8 +175,18 @@ module tb_agri_drone_csr;
         //---------------------------------------------------------------------
         stress_pass = 1;
         for (int s = 0; s < 300; s++) begin
-            automatic logic [5:0] rand_a = ($urandom_range(3, 10)) * 4; // Multiples of 4
+            automatic logic [5:0] rand_a = ($urandom_range(3, 10)) * 4; // 0x0C, 0x10, 0x14, 0x18, 0x1C, 0x20, 0x24, 0x28
             automatic logic [31:0] rand_d = $urandom();
+            automatic logic [31:0] exp_rdata;
+
+            case (rand_a)
+                6'h0C:                   exp_rdata = {{8{rand_d[23]}}, rand_d[23:0]};
+                6'h10:                   exp_rdata = rand_d;
+                6'h14:                   exp_rdata = rand_d;
+                6'h18:                   exp_rdata = {24'h0, rand_d[7:0]};
+                6'h1C, 6'h20, 6'h24, 6'h28: exp_rdata = {{8{rand_d[23]}}, rand_d[23:0]};
+                default:                 exp_rdata = rand_d;
+            endcase
 
             @(negedge clk);
             csr_wr_en = 1; csr_addr = rand_a; csr_wdata = rand_d;
@@ -184,9 +194,7 @@ module tb_agri_drone_csr;
             @(negedge clk);
             csr_wr_en = 0;
             #1;
-            if (rand_a == 6'h0C && csr_rdata !== {8'd0, rand_d[23:0]}) stress_pass = 0;
-            if (rand_a == 6'h10 && csr_rdata !== rand_d)               stress_pass = 0;
-            if (rand_a == 6'h14 && csr_rdata !== rand_d)               stress_pass = 0;
+            if (csr_rdata !== exp_rdata) stress_pass = 0;
         end
         record_result("STRESS", stress_pass, "TC8: 300 randomized CSR writes/reads matched exact bitfields");
 

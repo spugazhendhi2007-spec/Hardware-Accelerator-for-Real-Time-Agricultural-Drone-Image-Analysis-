@@ -3,7 +3,7 @@
 // Description: Master System-Level Self-Checking Testbench for agri_drone_top
 //              implementing the standard 8-test verification suite (5 Corner +
 //              2 Normal End-to-End Frames + 1 Multi-Frame Ultimate Stress).
-// Standard: SystemVerilog IEEE 1800
+// Standard: SystemVerilog IEEE 1800 (Clean 0-warning compilation)
 //=============================================================================
 
 `timescale 1ns/1ps
@@ -69,28 +69,29 @@ module tb_agri_drone_top;
     // Helper Task: Stream 625 pixels into AXI-Stream Interface
     task automatic stream_frame(input logic [7:0] img[625], input bit with_stalls = 0);
         for (int i = 0; i < 625; i++) begin
-            @(posedge clk);
-            while (!s_axis_tready) @(posedge clk);
+            @(negedge clk);
+            while (!s_axis_tready) @(negedge clk);
             s_axis_tvalid = 1;
             s_axis_tdata  = img[i];
             s_axis_tlast  = (i == 624);
 
             if (with_stalls && (i % 7 == 0)) begin
-                @(posedge clk);
+                @(negedge clk);
                 s_axis_tvalid = 0;
                 s_axis_tlast  = 0;
             end
         end
-        @(posedge clk);
+        @(negedge clk);
         s_axis_tvalid = 0;
         s_axis_tlast  = 0;
     endtask
 
     // Main Test Sequence
-    initial begin
-        logic [7:0] healthy_frame[625];
-        logic [7:0] blight_frame[625];
-        logic [7:0] rand_frame[625];
+    initial begin : test_seq
+        automatic logic [7:0] healthy_frame[625];
+        automatic logic [7:0] blight_frame[625];
+        automatic logic [7:0] rand_frame[625];
+        automatic bit stress_pass = 1;
 
         reset_counters();
         rst_n         = 0;
@@ -116,26 +117,27 @@ module tb_agri_drone_top;
         //---------------------------------------------------------------------
         // CORNER TEST 1: Reset During Active Inference Ingestion
         //---------------------------------------------------------------------
-        @(posedge clk);
-        start = 1; @(posedge clk); start = 0;
-        @(posedge clk);
+        @(negedge clk);
+        start = 1; @(negedge clk); start = 0;
+        @(negedge clk);
         s_axis_tvalid = 1; s_axis_tdata = 8'hFF;
-        @(posedge clk);
+        @(negedge clk);
         rst_n = 0;
         @(posedge clk);
         #1;
         record_result("CORNER", (busy === 1'b0 && done === 1'b0), "TC1: Global reset mid-stream cleans all subsystem states");
+        @(negedge clk);
         rst_n = 1; s_axis_tvalid = 0;
         #20;
 
         //---------------------------------------------------------------------
         // CORNER TEST 2: Soft Reset via CSR Register Bit 1
         //---------------------------------------------------------------------
-        @(posedge clk);
-        start = 1; @(posedge clk); start = 0;
-        @(posedge clk);
+        @(negedge clk);
+        start = 1; @(negedge clk); start = 0;
+        @(negedge clk);
         csr_wr_en = 1; csr_addr = 6'h00; csr_wdata = 32'h00000002; // soft_rst = 1
-        @(posedge clk);
+        @(negedge clk);
         csr_wr_en = 0;
         @(posedge clk);
         #1;
@@ -145,10 +147,9 @@ module tb_agri_drone_top;
         //---------------------------------------------------------------------
         // CORNER TEST 3: Intermittent Backpressure / AXI Valid Stalls
         //---------------------------------------------------------------------
-        @(posedge clk);
-        start = 1; @(posedge clk); start = 0;
-        stream_frame(healthy_frame, 1); // with_stalls = 1
-        // Wait for completion
+        @(negedge clk);
+        start = 1; @(negedge clk); start = 0;
+        stream_frame(healthy_frame, 1);
         fork
             begin
                 while (!done) @(posedge clk);
@@ -157,17 +158,20 @@ module tb_agri_drone_top;
                 #50000; // Timeout
             end
         join_any
+        #1;
         record_result("CORNER", (done === 1'b1 || busy === 1'b0), "TC3: Frame ingestion with intermittent stalls completes safely");
         #20;
 
         //---------------------------------------------------------------------
         // CORNER TEST 4: CSR Kernel Weights & Bias Dynamic Reconfiguration
         //---------------------------------------------------------------------
+        @(negedge clk);
+        csr_wr_en = 1; csr_addr = 6'h0C; csr_wdata = 32'sd500;
         @(posedge clk);
-        csr_wr_en = 1; csr_addr = 6'h0C; csr_wdata = 32'sd500; // conv_bias = 500
-        @(posedge clk);
+        @(negedge clk);
         csr_wr_en = 1; csr_addr = 6'h10; csr_wdata = {8'sd2, 8'sd2, 8'sd2, 8'sd2};
         @(posedge clk);
+        @(negedge clk);
         csr_wr_en = 0;
         #1;
         record_result("CORNER", (dut.conv_bias === 24'sd500 && dut.conv_w0 === 8'sd2), "TC4: Dynamic CSR kernel weight reconfiguration verified");
@@ -175,8 +179,8 @@ module tb_agri_drone_top;
         //---------------------------------------------------------------------
         // CORNER TEST 5: Single-Cycle Done Pulse Verification
         //---------------------------------------------------------------------
-        @(posedge clk);
-        start = 1; @(posedge clk); start = 0;
+        @(negedge clk);
+        start = 1; @(negedge clk); start = 0;
         stream_frame(healthy_frame, 0);
         while (!done) @(posedge clk);
         #1;
@@ -189,20 +193,23 @@ module tb_agri_drone_top;
         // NORMAL TEST 6: Full End-to-End Healthy Crop Frame (Class 0, No Disease)
         //---------------------------------------------------------------------
         begin
-            // Reset weights to default
-            @(posedge clk);
+            @(negedge clk);
             csr_wr_en = 1; csr_addr = 6'h0C; csr_wdata = 32'sd0;
             @(posedge clk);
+            @(negedge clk);
             csr_wr_en = 1; csr_addr = 6'h10; csr_wdata = {-8'sd1, -8'sd1, -8'sd1, -8'sd1};
             @(posedge clk);
+            @(negedge clk);
             csr_wr_en = 1; csr_addr = 6'h14; csr_wdata = {-8'sd1, -8'sd1, -8'sd1, 8'sd8};
             @(posedge clk);
+            @(negedge clk);
             csr_wr_en = 1; csr_addr = 6'h18; csr_wdata = {24'd0, -8'sd1};
             @(posedge clk);
+            @(negedge clk);
             csr_wr_en = 0;
 
-            @(posedge clk);
-            start = 1; @(posedge clk); start = 0;
+            @(negedge clk);
+            start = 1; @(negedge clk); start = 0;
             stream_frame(healthy_frame, 0);
 
             while (!done) @(posedge clk);
@@ -216,8 +223,8 @@ module tb_agri_drone_top;
         // NORMAL TEST 7: Full End-to-End Leaf Blight Frame (Class 1, Disease Detected)
         //---------------------------------------------------------------------
         begin
-            @(posedge clk);
-            start = 1; @(posedge clk); start = 0;
+            @(negedge clk);
+            start = 1; @(negedge clk); start = 0;
             stream_frame(blight_frame, 0);
 
             while (!done) @(posedge clk);
@@ -230,26 +237,24 @@ module tb_agri_drone_top;
         //---------------------------------------------------------------------
         // ULTIMATE STRESS TEST 8: 3 Consecutive Back-to-Back Randomized Frames
         //---------------------------------------------------------------------
-        begin
-            bit stress_pass = 1;
-            for (int f = 0; f < 3; f++) begin
-                for (int p = 0; p < 625; p++) rand_frame[p] = $urandom_range(0, 255);
+        stress_pass = 1;
+        for (int f = 0; f < 3; f++) begin
+            for (int p = 0; p < 625; p++) rand_frame[p] = $urandom_range(0, 255);
 
-                @(posedge clk);
-                start = 1; @(posedge clk); start = 0;
-                stream_frame(rand_frame, (f == 1));
+            @(negedge clk);
+            start = 1; @(negedge clk); start = 0;
+            stream_frame(rand_frame, (f == 1));
 
-                while (!done) @(posedge clk);
-                #1;
-                if (confidence < 16'd128 || confidence > 16'd256) stress_pass = 0;
-                @(posedge clk);
-            end
-            record_result("STRESS", stress_pass, "TC8: 3 consecutive randomized multi-frame streams completed with valid classifications");
+            while (!done) @(posedge clk);
+            #1;
+            if (confidence < 16'd128 || confidence > 16'd256) stress_pass = 0;
+            @(posedge clk);
         end
+        record_result("STRESS", stress_pass, "TC8: 3 consecutive randomized multi-frame streams completed with valid classifications");
 
         #30;
         print_summary("agri_drone_top");
         $finish;
-    end
+    end : test_seq
 
 endmodule: tb_agri_drone_top

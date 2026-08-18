@@ -2,7 +2,7 @@
 // File: tb_image_buffer_25x25.sv
 // Description: Self-checking testbench for image_buffer_25x25 adhering to the
 //              standard 8-test verification suite (5 Corner + 2 Normal + 1 Stress).
-// Standard: SystemVerilog IEEE 1800
+// Standard: SystemVerilog IEEE 1800 (Clean 0-warning compilation)
 //=============================================================================
 
 `timescale 1ns/1ps
@@ -46,7 +46,12 @@ module tb_image_buffer_25x25;
     );
 
     // Test sequence
-    initial begin
+    initial begin : test_seq
+        automatic bit full_frame_pass = 1;
+        automatic bit stride_pass = 1;
+        automatic bit stress_pass = 1;
+        automatic logic [7:0] shadow_mem [TOTAL_PIXELS-1:0];
+
         reset_counters();
         rst_n   = 0;
         wr_en   = 0;
@@ -61,144 +66,144 @@ module tb_image_buffer_25x25;
         //---------------------------------------------------------------------
         // CORNER TEST 1: First address (0) write & read
         //---------------------------------------------------------------------
-        @(posedge clk);
+        @(negedge clk);
         wr_en = 1; wr_addr = 0; wr_data = 8'hA5;
-        @(posedge clk);
+        @(negedge clk);
         wr_en = 0; rd_en = 1; rd_addr = 0;
         @(posedge clk);
         #1;
         record_result("CORNER", (rd_data === 8'hA5), "TC1: Address 0 first pixel write/read verified");
+        @(negedge clk);
         rd_en = 0;
 
         //---------------------------------------------------------------------
         // CORNER TEST 2: Boundary address 624 (last pixel) write & read
         //---------------------------------------------------------------------
-        @(posedge clk);
+        @(negedge clk);
         wr_en = 1; wr_addr = 624; wr_data = 8'h5A;
-        @(posedge clk);
+        @(negedge clk);
         wr_en = 0; rd_en = 1; rd_addr = 624;
         @(posedge clk);
         #1;
         record_result("CORNER", (rd_data === 8'h5A), "TC2: Address 624 perimeter pixel write/read verified");
+        @(negedge clk);
         rd_en = 0;
 
         //---------------------------------------------------------------------
         // CORNER TEST 3: Out-of-bounds write attempt (>624)
         //---------------------------------------------------------------------
-        @(posedge clk);
+        @(negedge clk);
         wr_en = 1; wr_addr = 700; wr_data = 8'hFF;
-        @(posedge clk);
+        @(negedge clk);
         wr_en = 0; rd_en = 1; rd_addr = 624;
         @(posedge clk);
         #1;
         record_result("CORNER", (rd_data === 8'h5A), "TC3: Out-of-bounds write ignored safely");
+        @(negedge clk);
         rd_en = 0;
 
         //---------------------------------------------------------------------
         // CORNER TEST 4: Simultaneous write and read at different addresses
         //---------------------------------------------------------------------
-        @(posedge clk);
+        @(negedge clk);
         wr_en = 1; wr_addr = 100; wr_data = 8'h33;
         rd_en = 1; rd_addr = 0;
         @(posedge clk);
         #1;
         record_result("CORNER", (rd_data === 8'hA5), "TC4: Dual-port simultaneous write/read matched");
+        @(negedge clk);
         wr_en = 0; rd_en = 0;
 
         //---------------------------------------------------------------------
         // CORNER TEST 5: Back-to-back overwrite of same address
         //---------------------------------------------------------------------
-        @(posedge clk);
+        @(negedge clk);
         wr_en = 1; wr_addr = 50; wr_data = 8'h11;
-        @(posedge clk);
+        @(negedge clk);
         wr_en = 1; wr_addr = 50; wr_data = 8'h22;
-        @(posedge clk);
+        @(negedge clk);
         wr_en = 0; rd_en = 1; rd_addr = 50;
         @(posedge clk);
         #1;
         record_result("CORNER", (rd_data === 8'h22), "TC5: Overwrite updated correctly");
+        @(negedge clk);
         rd_en = 0;
 
         //---------------------------------------------------------------------
         // NORMAL TEST 6: Complete 625-pixel sequential frame load and verify
         //---------------------------------------------------------------------
-        begin
-            bit full_frame_pass = 1;
-            for (int i = 0; i < TOTAL_PIXELS; i++) begin
-                @(posedge clk);
-                wr_en = 1; wr_addr = i; wr_data = i[7:0];
-            end
-            @(posedge clk); wr_en = 0;
-
-            for (int i = 0; i < TOTAL_PIXELS; i++) begin
-                @(posedge clk);
-                rd_en = 1; rd_addr = i;
-                @(posedge clk);
-                #1;
-                if (rd_data !== i[7:0]) full_frame_pass = 0;
-            end
-            rd_en = 0;
-            record_result("NORMAL", full_frame_pass, "TC6: Full 625-pixel sequential frame storage verified");
+        full_frame_pass = 1;
+        for (int i = 0; i < TOTAL_PIXELS; i++) begin
+            @(negedge clk);
+            wr_en = 1; wr_addr = i; wr_data = i[7:0];
         end
+        @(negedge clk);
+        wr_en = 0;
+
+        for (int i = 0; i < TOTAL_PIXELS; i++) begin
+            @(negedge clk);
+            rd_en = 1; rd_addr = i;
+            @(posedge clk);
+            #1;
+            if (rd_data !== i[7:0]) full_frame_pass = 0;
+        end
+        @(negedge clk);
+        rd_en = 0;
+        record_result("NORMAL", full_frame_pass, "TC6: Full 625-pixel sequential frame storage verified");
 
         //---------------------------------------------------------------------
         // NORMAL TEST 7: 2D Spatial stride read pattern (row-by-row traversal)
         //---------------------------------------------------------------------
-        begin
-            bit stride_pass = 1;
-            for (int r = 0; r < 25; r++) begin
-                for (int c = 0; c < 25; c++) begin
-                    int addr = r * 25 + c;
-                    @(posedge clk);
-                    rd_en = 1; rd_addr = addr;
-                    @(posedge clk);
-                    #1;
-                    if (rd_data !== addr[7:0]) stride_pass = 0;
-                end
+        stride_pass = 1;
+        for (int r = 0; r < 25; r++) begin
+            for (int c = 0; c < 25; c++) begin
+                automatic int addr = r * 25 + c;
+                @(negedge clk);
+                rd_en = 1; rd_addr = addr;
+                @(posedge clk);
+                #1;
+                if (rd_data !== addr[7:0]) stride_pass = 0;
             end
-            rd_en = 0;
-            record_result("NORMAL", stride_pass, "TC7: 2D stride matrix reading verified");
         end
+        @(negedge clk);
+        rd_en = 0;
+        record_result("NORMAL", stride_pass, "TC7: 2D stride matrix reading verified");
 
         //---------------------------------------------------------------------
         // ULTIMATE STRESS TEST 8: 500 Randomized writes/reads vs Shadow Memory
         //---------------------------------------------------------------------
-        begin
-            logic [7:0] shadow_mem [TOTAL_PIXELS-1:0];
-            bit stress_pass = 1;
+        stress_pass = 1;
+        for (int i = 0; i < TOTAL_PIXELS; i++) shadow_mem[i] = i[7:0];
 
-            // Initialize shadow memory with current contents
-            for (int i = 0; i < TOTAL_PIXELS; i++) shadow_mem[i] = i[7:0];
+        for (int s = 0; s < 500; s++) begin
+            automatic int rand_wr_addr = $urandom_range(0, TOTAL_PIXELS-1);
+            automatic logic [7:0] rand_val = $urandom_range(0, 255);
+            automatic int rand_rd_addr = $urandom_range(0, TOTAL_PIXELS-1);
+            automatic bit do_wr = $urandom_range(0, 1);
+            automatic bit do_rd = $urandom_range(0, 1);
 
-            for (int s = 0; s < 500; s++) begin
-                int rand_wr_addr = $urandom_range(0, TOTAL_PIXELS-1);
-                logic [7:0] rand_val = $urandom_range(0, 255);
-                int rand_rd_addr = $urandom_range(0, TOTAL_PIXELS-1);
-                bit do_wr = $urandom_range(0, 1);
-                bit do_rd = $urandom_range(0, 1);
+            @(negedge clk);
+            wr_en   = do_wr;
+            wr_addr = rand_wr_addr;
+            wr_data = rand_val;
+            rd_en   = do_rd;
+            rd_addr = rand_rd_addr;
 
-                @(posedge clk);
-                wr_en   = do_wr;
-                wr_addr = rand_wr_addr;
-                wr_data = rand_val;
-                rd_en   = do_rd;
-                rd_addr = rand_rd_addr;
+            if (do_wr) shadow_mem[rand_wr_addr] = rand_val;
 
-                if (do_wr) shadow_mem[rand_wr_addr] = rand_val;
-
-                @(posedge clk);
-                #1;
-                if (do_rd && (rd_data !== shadow_mem[rand_rd_addr])) begin
-                    stress_pass = 0;
-                end
+            @(posedge clk);
+            #1;
+            if (do_rd && (rd_data !== shadow_mem[rand_rd_addr])) begin
+                stress_pass = 0;
             end
-            wr_en = 0; rd_en = 0;
-            record_result("STRESS", stress_pass, "TC8: 500 randomized operations matched shadow memory");
         end
+        @(negedge clk);
+        wr_en = 0; rd_en = 0;
+        record_result("STRESS", stress_pass, "TC8: 500 randomized operations matched shadow memory");
 
         #20;
         print_summary("image_buffer_25x25");
         $finish;
-    end
+    end : test_seq
 
 endmodule: tb_image_buffer_25x25

@@ -2,7 +2,7 @@
 // File: tb_maxpool_2x2.sv
 // Description: Self-checking testbench for maxpool_2x2 adhering to the
 //              standard 8-test verification suite (5 Corner + 2 Normal + 1 Stress).
-// Standard: SystemVerilog IEEE 1800
+// Standard: SystemVerilog IEEE 1800 (Clean 0-warning compilation)
 //=============================================================================
 
 `timescale 1ns/1ps
@@ -21,7 +21,10 @@ module tb_maxpool_2x2;
     );
 
     // Test sequence
-    initial begin
+    initial begin : test_seq
+        automatic bit perm_pass = 1;
+        automatic bit stress_pass = 1;
+
         reset_counters();
         {a, b, c, d} = '0;
         #10;
@@ -43,14 +46,12 @@ module tb_maxpool_2x2;
         //---------------------------------------------------------------------
         // CORNER TEST 3: Permutation of Maximum in Positions a, b, c, d
         //---------------------------------------------------------------------
-        begin
-            bit perm_pass = 1;
-            a = 16'sd999; b = 16'sd1; c = 16'sd2; d = 16'sd3; #1; if (max_out !== 16'sd999) perm_pass = 0;
-            a = 16'sd1; b = 16'sd999; c = 16'sd2; d = 16'sd3; #1; if (max_out !== 16'sd999) perm_pass = 0;
-            a = 16'sd1; b = 16'sd2; c = 16'sd999; d = 16'sd3; #1; if (max_out !== 16'sd999) perm_pass = 0;
-            a = 16'sd1; b = 16'sd2; c = 16'sd3; d = 16'sd999; #1; if (max_out !== 16'sd999) perm_pass = 0;
-            record_result("CORNER", perm_pass, "TC3: Maximum located in each of 4 port positions verified");
-        end
+        perm_pass = 1;
+        a = 16'sd999; b = 16'sd1; c = 16'sd2; d = 16'sd3; #1; if (max_out !== 16'sd999) perm_pass = 0;
+        a = 16'sd1; b = 16'sd999; c = 16'sd2; d = 16'sd3; #1; if (max_out !== 16'sd999) perm_pass = 0;
+        a = 16'sd1; b = 16'sd2; c = 16'sd999; d = 16'sd3; #1; if (max_out !== 16'sd999) perm_pass = 0;
+        a = 16'sd1; b = 16'sd2; c = 16'sd3; d = 16'sd999; #1; if (max_out !== 16'sd999) perm_pass = 0;
+        record_result("CORNER", perm_pass, "TC3: Maximum located in each of 4 port positions verified");
 
         //---------------------------------------------------------------------
         // CORNER TEST 4: Extreme Range Limits (-32768 and +32767)
@@ -83,30 +84,28 @@ module tb_maxpool_2x2;
         //---------------------------------------------------------------------
         // ULTIMATE STRESS TEST 8: 500 Randomized 4-Tuples
         //---------------------------------------------------------------------
-        begin
-            bit stress_pass = 1;
-            for (int s = 0; s < 500; s++) begin
-                logic signed [15:0] ra = $urandom_range(0, 65535);
-                logic signed [15:0] rb = $urandom_range(0, 65535);
-                logic signed [15:0] rc = $urandom_range(0, 65535);
-                logic signed [15:0] rd = $urandom_range(0, 65535);
-                logic signed [15:0] exp_max = ra;
-                if (rb > exp_max) exp_max = rb;
-                if (rc > exp_max) exp_max = rc;
-                if (rd > exp_max) exp_max = rd;
+        stress_pass = 1;
+        for (int s = 0; s < 500; s++) begin
+            automatic logic signed [15:0] ra = $urandom_range(0, 65535);
+            automatic logic signed [15:0] rb = $urandom_range(0, 65535);
+            automatic logic signed [15:0] rc = $urandom_range(0, 65535);
+            automatic logic signed [15:0] rd = $urandom_range(0, 65535);
+            automatic logic signed [15:0] exp_max = ra;
+            if (rb > exp_max) exp_max = rb;
+            if (rc > exp_max) exp_max = rc;
+            if (rd > exp_max) exp_max = rd;
 
-                a = ra; b = rb; c = rc; d = rd;
-                #1;
-                if (max_out !== exp_max) begin
-                    stress_pass = 0;
-                end
+            a = ra; b = rb; c = rc; d = rd;
+            #1;
+            if (max_out !== exp_max) begin
+                stress_pass = 0;
             end
-            record_result("STRESS", stress_pass, "TC8: 500 randomized 4-tuple pooling operations matched golden max()");
         end
+        record_result("STRESS", stress_pass, "TC8: 500 randomized 4-tuple pooling operations matched golden max()");
 
         #10;
         print_summary("maxpool_2x2");
         $finish;
-    end
+    end : test_seq
 
 endmodule: tb_maxpool_2x2

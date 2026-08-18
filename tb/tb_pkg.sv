@@ -2,7 +2,7 @@
 // File: tb_pkg.sv
 // Description: Master Verification Package for Agricultural Drone Accelerator
 //              Contains test counters, assertion helpers, and summary formatters.
-// Standard: SystemVerilog IEEE 1800
+// Standard: SystemVerilog IEEE 1800 (Clean 0-warning compilation)
 //=============================================================================
 
 `timescale 1ns/1ps
@@ -22,7 +22,7 @@ package tb_pkg;
     int total_test_count  = 0;
 
     // Reset counters before each testbench run
-    function void reset_counters();
+    function automatic void reset_counters();
         corner_pass_count = 0;
         corner_fail_count = 0;
         normal_pass_count = 0;
@@ -35,7 +35,7 @@ package tb_pkg;
     endfunction
 
     // Record individual test results
-    function void record_result(input string test_type, input bit passed, input string test_name = "");
+    function automatic void record_result(input string test_type, input bit passed, input string test_name = "");
         total_test_count++;
         if (passed) begin
             total_pass_count++;
@@ -59,7 +59,7 @@ package tb_pkg;
     endfunction
 
     // Standardized Summary Reporting Task
-    task print_summary(input string module_name);
+    task automatic print_summary(input string module_name);
         $display("\n================================================================");
         $display("TEST SUMMARY : %s", module_name);
         $display("================================================================");

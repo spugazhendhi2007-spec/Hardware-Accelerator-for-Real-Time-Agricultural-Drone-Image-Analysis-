@@ -2,7 +2,7 @@
 // File: tb_agri_fsm_controller.sv
 // Description: Self-checking testbench for agri_fsm_controller adhering to the
 //              standard 8-test verification suite (5 Corner + 2 Normal + 1 Stress).
-// Standard: SystemVerilog IEEE 1800
+// Standard: SystemVerilog IEEE 1800 (Clean 0-warning compilation)
 //=============================================================================
 
 `timescale 1ns/1ps
@@ -74,7 +74,11 @@ module tb_agri_fsm_controller;
     );
 
     // Test sequence
-    initial begin
+    initial begin : test_seq
+        automatic bit normal_pass = 1;
+        automatic bit b2b_pass = 1;
+        automatic bit stress_pass = 1;
+
         reset_counters();
         rst_n            = 0;
         start_pulse      = 0;
@@ -97,17 +101,19 @@ module tb_agri_fsm_controller;
         //---------------------------------------------------------------------
         // CORNER TEST 2: Reset during LOAD_STREAM state
         //---------------------------------------------------------------------
-        @(posedge clk);
+        @(negedge clk);
         start_pulse = 1;
-        @(posedge clk);
+        @(negedge clk);
         start_pulse = 0;
         @(posedge clk);
         #1;
         if (current_state === 3'd1) begin
+            @(negedge clk);
             rst_n = 0;
             @(posedge clk);
             #1;
             record_result("CORNER", (current_state === 3'd0), "TC2: Hard reset returns FSM from LOAD to IDLE");
+            @(negedge clk);
             rst_n = 1;
         end else begin
             record_result("CORNER", 0, "TC2: Failed transition to LOAD state");
@@ -116,31 +122,33 @@ module tb_agri_fsm_controller;
         //---------------------------------------------------------------------
         // CORNER TEST 3: Soft reset during CLASSIFY state
         //---------------------------------------------------------------------
-        @(posedge clk);
+        @(negedge clk);
         start_pulse = 1;
-        @(posedge clk);
+        @(negedge clk);
         start_pulse = 0;
-        // Fast-forward to CLASSIFY
         fifo_m_valid = 1;
         repeat(625) @(posedge clk);
+        @(negedge clk);
         fifo_m_valid = 0;
         conv_engine_done = 1;
-        @(posedge clk);
+        @(negedge clk);
         conv_engine_done = 0;
         @(posedge clk);
         #1;
+        @(negedge clk);
         soft_rst = 1;
-        @(posedge clk);
+        @(negedge clk);
         soft_rst = 0;
+        @(posedge clk);
         #1;
         record_result("CORNER", (current_state === 3'd0), "TC3: Soft reset aborts execution to IDLE");
 
         //---------------------------------------------------------------------
         // CORNER TEST 4: FIFO empty stalls in LOAD_STREAM
         //---------------------------------------------------------------------
-        @(posedge clk);
+        @(negedge clk);
         start_pulse = 1;
-        @(posedge clk);
+        @(negedge clk);
         start_pulse = 0;
         fifo_m_valid = 0; // Stalled
         repeat(5) @(posedge clk);
@@ -150,12 +158,14 @@ module tb_agri_fsm_controller;
         //---------------------------------------------------------------------
         // CORNER TEST 5: Single cycle DONE pulse check
         //---------------------------------------------------------------------
+        @(negedge clk);
         fifo_m_valid = 1;
         repeat(625) @(posedge clk);
+        @(negedge clk);
         fifo_m_valid = 0;
-        conv_engine_done = 1; @(posedge clk); conv_engine_done = 0;
-        classifier_done = 1;  @(posedge clk); classifier_done = 0;
-        argmax_done = 1;      @(posedge clk); argmax_done = 0;
+        conv_engine_done = 1; @(negedge clk); conv_engine_done = 0;
+        classifier_done = 1;  @(negedge clk); classifier_done = 0;
+        argmax_done = 1;      @(negedge clk); argmax_done = 0;
         @(posedge clk);
         #1;
         record_result("CORNER", (done === 1'b1), "TC5: Done pulse asserted on frame finish");
@@ -166,92 +176,93 @@ module tb_agri_fsm_controller;
         //---------------------------------------------------------------------
         // NORMAL TEST 6: Complete Standard Single-Frame Sequence
         //---------------------------------------------------------------------
-        begin
-            bit normal_pass = 1;
-            @(posedge clk); start_pulse = 1;
-            @(posedge clk); start_pulse = 0;
-            if (current_state !== 3'd1) normal_pass = 0;
+        normal_pass = 1;
+        @(negedge clk); start_pulse = 1;
+        @(negedge clk); start_pulse = 0;
+        @(posedge clk); #1;
+        if (current_state !== 3'd1) normal_pass = 0;
 
-            fifo_m_valid = 1;
-            repeat(625) @(posedge clk);
-            fifo_m_valid = 0;
-            if (current_state !== 3'd2) normal_pass = 0;
+        @(negedge clk);
+        fifo_m_valid = 1;
+        repeat(625) @(posedge clk);
+        @(negedge clk);
+        fifo_m_valid = 0;
+        @(posedge clk); #1;
+        if (current_state !== 3'd2) normal_pass = 0;
 
-            conv_engine_done = 1; @(posedge clk); conv_engine_done = 0;
-            if (current_state !== 3'd3) normal_pass = 0;
+        @(negedge clk); conv_engine_done = 1;
+        @(negedge clk); conv_engine_done = 0;
+        @(posedge clk); #1;
+        if (current_state !== 3'd3) normal_pass = 0;
 
-            classifier_done = 1;  @(posedge clk); classifier_done = 0;
-            if (current_state !== 3'd4) normal_pass = 0;
+        @(negedge clk); classifier_done = 1;
+        @(negedge clk); classifier_done = 0;
+        @(posedge clk); #1;
+        if (current_state !== 3'd4) normal_pass = 0;
 
-            argmax_done = 1;      @(posedge clk); argmax_done = 0;
-            @(posedge clk);
-            if (done !== 1'b1) normal_pass = 0;
-            @(posedge clk);
-            if (current_state !== 3'd0) normal_pass = 0;
+        @(negedge clk); argmax_done = 1;
+        @(negedge clk); argmax_done = 0;
+        @(posedge clk); #1;
+        if (done !== 1'b1) normal_pass = 0;
+        @(posedge clk); #1;
+        if (current_state !== 3'd0) normal_pass = 0;
 
-            record_result("NORMAL", normal_pass, "TC6: Full 6-state pipeline sequence executed cleanly");
-        end
+        record_result("NORMAL", normal_pass, "TC6: Full 6-state pipeline sequence executed cleanly");
 
         //---------------------------------------------------------------------
         // NORMAL TEST 7: Consecutive Back-to-Back 2-Frame Pipeline
         //---------------------------------------------------------------------
-        begin
-            bit b2b_pass = 1;
-            for (int f = 0; f < 2; f++) begin
-                @(posedge clk); start_pulse = 1; @(posedge clk); start_pulse = 0;
-                fifo_m_valid = 1;
-                repeat(625) @(posedge clk);
-                fifo_m_valid = 0;
-                conv_engine_done = 1; @(posedge clk); conv_engine_done = 0;
-                classifier_done = 1;  @(posedge clk); classifier_done = 0;
-                argmax_done = 1;      @(posedge clk); argmax_done = 0;
-                @(posedge clk);
-                if (done !== 1'b1) b2b_pass = 0;
-                @(posedge clk);
-            end
-            record_result("NORMAL", b2b_pass, "TC7: Back-to-back 2-frame execution completed");
+        b2b_pass = 1;
+        for (int f = 0; f < 2; f++) begin
+            @(negedge clk); start_pulse = 1; @(negedge clk); start_pulse = 0;
+            @(negedge clk); fifo_m_valid = 1;
+            repeat(625) @(posedge clk);
+            @(negedge clk); fifo_m_valid = 0;
+            conv_engine_done = 1; @(negedge clk); conv_engine_done = 0;
+            classifier_done = 1;  @(negedge clk); classifier_done = 0;
+            argmax_done = 1;      @(negedge clk); argmax_done = 0;
+            @(posedge clk);
+            #1;
+            if (done !== 1'b1) b2b_pass = 0;
+            @(posedge clk);
         end
+        record_result("NORMAL", b2b_pass, "TC7: Back-to-back 2-frame execution completed");
 
         //---------------------------------------------------------------------
         // ULTIMATE STRESS TEST 8: 10 Full Inference Cycles with Random Delays
         //---------------------------------------------------------------------
-        begin
-            bit stress_pass = 1;
-            for (int c = 0; c < 10; c++) begin
-                @(posedge clk); start_pulse = 1; @(posedge clk); start_pulse = 0;
+        stress_pass = 1;
+        for (int c = 0; c < 10; c++) begin
+            @(negedge clk); start_pulse = 1; @(negedge clk); start_pulse = 0;
 
-                // Stream pixels with random stalls
-                for (int p = 0; p < 625; p++) begin
-                    @(posedge clk);
-                    fifo_m_valid = 1;
-                    if ($urandom_range(0, 5) == 0) begin
-                        @(posedge clk); fifo_m_valid = 0;
-                    end
+            for (int p = 0; p < 625; p++) begin
+                @(negedge clk);
+                fifo_m_valid = 1;
+                if ($urandom_range(0, 5) == 0) begin
+                    @(negedge clk); fifo_m_valid = 0;
                 end
-                @(posedge clk); fifo_m_valid = 0;
-
-                // Random delay in conv
-                repeat($urandom_range(1, 5)) @(posedge clk);
-                conv_engine_done = 1; @(posedge clk); conv_engine_done = 0;
-
-                // Random delay in cls
-                repeat($urandom_range(1, 5)) @(posedge clk);
-                classifier_done = 1; @(posedge clk); classifier_done = 0;
-
-                // Random delay in argmax
-                repeat($urandom_range(1, 3)) @(posedge clk);
-                argmax_done = 1; @(posedge clk); argmax_done = 0;
-
-                @(posedge clk);
-                if (done !== 1'b1) stress_pass = 0;
-                @(posedge clk);
             end
-            record_result("STRESS", stress_pass, "TC8: 10 randomized inference cycles executed without deadlock");
+            @(negedge clk); fifo_m_valid = 0;
+
+            repeat($urandom_range(1, 5)) @(posedge clk);
+            @(negedge clk); conv_engine_done = 1; @(negedge clk); conv_engine_done = 0;
+
+            repeat($urandom_range(1, 5)) @(posedge clk);
+            @(negedge clk); classifier_done = 1; @(negedge clk); classifier_done = 0;
+
+            repeat($urandom_range(1, 3)) @(posedge clk);
+            @(negedge clk); argmax_done = 1; @(negedge clk); argmax_done = 0;
+
+            @(posedge clk);
+            #1;
+            if (done !== 1'b1) stress_pass = 0;
+            @(posedge clk);
         end
+        record_result("STRESS", stress_pass, "TC8: 10 randomized inference cycles executed without deadlock");
 
         #20;
         print_summary("agri_fsm_controller");
         $finish;
-    end
+    end : test_seq
 
 endmodule: tb_agri_fsm_controller

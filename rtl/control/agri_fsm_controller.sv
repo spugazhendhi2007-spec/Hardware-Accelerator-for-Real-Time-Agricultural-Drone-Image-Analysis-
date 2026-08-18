@@ -83,7 +83,8 @@ module agri_fsm_controller #(
 
             STATE_LOAD_STREAM: begin
                 gclk_load_en = 1'b1;
-                gclk_conv_en = 1'b1; // Pipe stream directly into line buffer & conv
+                gclk_conv_en = 1'b1; // Line buffer + Conv Engine
+                gclk_cls_en  = 1'b1; // Dense Classifier receives streaming features
 
                 if (fifo_m_valid) begin
                     fifo_pop_en   = 1'b1;

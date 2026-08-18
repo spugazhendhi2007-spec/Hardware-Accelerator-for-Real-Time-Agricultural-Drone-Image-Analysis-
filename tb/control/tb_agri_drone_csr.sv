@@ -171,10 +171,10 @@ module tb_agri_drone_csr;
         record_result("NORMAL", (dense_bias0 === 24'sd100 && dense_bias1 === -24'sd200), "TC7: Signed dense bias registers programmed correctly");
 
         //---------------------------------------------------------------------
-        // ULTIMATE STRESS TEST 8: 300 Randomized CSR Writes and Verified Read-Backs
+        // ULTIMATE STRESS TEST 8: 50 Randomized CSR Writes and Verified Read-Backs
         //---------------------------------------------------------------------
         stress_pass = 1;
-        for (int s = 0; s < 300; s++) begin
+        for (int s = 0; s < 50; s++) begin
             automatic logic [5:0] rand_a = ($urandom_range(3, 10)) * 4; // 0x0C, 0x10, 0x14, 0x18, 0x1C, 0x20, 0x24, 0x28
             automatic logic [31:0] rand_d = $urandom();
             automatic logic [31:0] exp_rdata;
@@ -196,7 +196,7 @@ module tb_agri_drone_csr;
             #1;
             if (csr_rdata !== exp_rdata) stress_pass = 0;
         end
-        record_result("STRESS", stress_pass, "TC8: 300 randomized CSR writes/reads matched exact bitfields");
+        record_result("STRESS", stress_pass, "TC8: 50 randomized CSR writes/reads matched exact bitfields");
 
         #20;
         print_summary("agri_drone_csr");

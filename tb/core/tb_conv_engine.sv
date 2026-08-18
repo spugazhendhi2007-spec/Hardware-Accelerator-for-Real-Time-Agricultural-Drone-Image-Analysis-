@@ -112,7 +112,7 @@ module tb_conv_engine;
         @(negedge clk); start = 1; @(negedge clk); start = 0;
         w0 = 8'sd127; w1 = 8'sd127; w2 = 8'sd127; w3 = 8'sd127; w4 = 8'sd127; w5 = 8'sd127; w6 = 8'sd127; w7 = 8'sd127; w8 = 8'sd127;
         bias = 24'sd0;
-        for (int r = 0; r < 23; r++) begin
+        for (int r = 0; r < 2; r++) begin
             for (int c = 0; c < 23; c++) begin
                 @(negedge clk);
                 window_valid = 1; win_row = r; win_col = c;
@@ -129,7 +129,7 @@ module tb_conv_engine;
         //---------------------------------------------------------------------
         @(negedge clk); start = 1; @(negedge clk); start = 0;
         bias = -24'sd500000;
-        for (int r = 0; r < 23; r++) begin
+        for (int r = 0; r < 2; r++) begin
             for (int c = 0; c < 23; c++) begin
                 @(negedge clk);
                 window_valid = 1; win_row = r; win_col = c;

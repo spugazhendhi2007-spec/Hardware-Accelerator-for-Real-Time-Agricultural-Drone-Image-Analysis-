@@ -58,42 +58,42 @@ module agri_drone_top #(
     wire rst_n_combined = rst_n & (~ctrl_soft_rst);
 
     // FSM Control Signals
-    logic                     fsm_fifo_pop_en;
-    logic                     fsm_img_wr_en;
-    logic [9:0]               fsm_img_wr_addr;
-    logic                     fsm_lb_clr;
-    logic                     fsm_conv_start;
-    logic                     fsm_cls_start;
-    logic                     fsm_argmax_en;
-    logic                     fsm_gclk_load_en;
-    logic                     fsm_gclk_conv_en;
-    logic                     fsm_gclk_cls_en;
-    logic                     fsm_busy;
-    logic                     fsm_done;
-    logic [2:0]               fsm_state;
+    logic [2:0]  fsm_state;
+    logic        fsm_busy;
+    logic        fsm_done;
+    logic        fsm_fifo_pop_en;
+    logic        fsm_img_wr_en;
+    logic [9:0]  fsm_img_wr_addr;
+    logic        fsm_lb_clr;
+    logic        fsm_conv_start;
+    logic        fsm_cls_start;
+    logic        fsm_argmax_en;
+    logic        fsm_gclk_load_en;
+    logic        fsm_gclk_conv_en;
+    logic        fsm_gclk_cls_en;
 
-    // AXI FIFO Outputs
-    logic [7:0]               fifo_m_data;
-    logic                     fifo_m_last;
-    logic                     fifo_m_valid;
-    logic                     fifo_full;
-    logic                     fifo_empty;
-    logic [5:0]               fifo_count;
+    // FIFO Outputs
+    logic [7:0]  fifo_m_data;
+    logic        fifo_m_last;
+    logic        fifo_m_valid;
+    logic        fifo_full;
+    logic        fifo_empty;
+    logic [5:0]  fifo_count;
 
     // Image Buffer Outputs
-    logic [7:0]               img_rd_data;
+    logic [7:0]  img_rd_data;
 
-    // Line Buffer Outputs
-    logic                     lb_win_valid;
-    logic [7:0]               lb_p0, lb_p1, lb_p2;
-    logic [7:0]               lb_p3, lb_p4, lb_p5;
-    logic [7:0]               lb_p6, lb_p7, lb_p8;
-    logic [5:0]               lb_win_col;
-    logic [5:0]               lb_win_row;
+    // Line Buffer Window Outputs
+    logic        lb_win_valid;
+    logic [7:0]  lb_p0, lb_p1, lb_p2;
+    logic [7:0]  lb_p3, lb_p4, lb_p5;
+    logic [7:0]  lb_p6, lb_p7, lb_p8;
+    logic [5:0]  lb_win_col;
+    logic [5:0]  lb_win_row;
 
-    // Conv Engine Outputs
-    logic                     conv_feat_valid;
+    // 2D Conv & Pool Outputs
     logic signed [15:0]       conv_feat_data;
+    logic                     conv_feat_valid;
     logic [6:0]               conv_feat_idx;
     logic                     conv_done_sig;
 
@@ -123,21 +123,21 @@ module agri_drone_top #(
     //-------------------------------------------------------------------------
     power_icg_cell u_icg_load (
         .clk(clk),
-        .en(ctrl_clk_gate_en ? fsm_gclk_load_en : 1'b1),
+        .en(ctrl_clk_gate_en ? (fsm_gclk_load_en | start_combined) : 1'b1),
         .test_en(test_en),
         .gclk(gclk_load)
     );
 
     power_icg_cell u_icg_conv (
         .clk(clk),
-        .en(ctrl_clk_gate_en ? fsm_gclk_conv_en : 1'b1),
+        .en(ctrl_clk_gate_en ? (fsm_gclk_conv_en | start_combined) : 1'b1),
         .test_en(test_en),
         .gclk(gclk_conv)
     );
 
     power_icg_cell u_icg_cls (
         .clk(clk),
-        .en(ctrl_clk_gate_en ? fsm_gclk_cls_en : 1'b1),
+        .en(ctrl_clk_gate_en ? (fsm_gclk_cls_en | start_combined) : 1'b1),
         .test_en(test_en),
         .gclk(gclk_cls)
     );

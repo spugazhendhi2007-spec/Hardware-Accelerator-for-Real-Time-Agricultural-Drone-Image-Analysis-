@@ -78,6 +78,9 @@ module agri_fsm_controller #(
                     line_buf_clr = 1'b1;
                     conv_start   = 1'b1;
                     cls_start    = 1'b1;
+                    gclk_load_en = 1'b1;
+                    gclk_conv_en = 1'b1;
+                    gclk_cls_en  = 1'b1;
                 end
             end
 

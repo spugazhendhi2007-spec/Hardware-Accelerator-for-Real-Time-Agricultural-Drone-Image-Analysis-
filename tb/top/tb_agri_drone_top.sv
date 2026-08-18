@@ -2,7 +2,7 @@
 // File: tb_agri_drone_top.sv
 // Description: Master System-Level Self-Checking Testbench for agri_drone_top
 //              implementing the complete 8-test verification suite (5 Corner +
-//              2 Normal End-to-End Frames + 1 Stress Test) with unlimited runtime.
+//              2 Normal End-to-End Frames + 1 Stress Test).
 // Standard: SystemVerilog IEEE 1800 (Clean 0-warning compilation)
 //=============================================================================
 
@@ -122,7 +122,7 @@ module tb_agri_drone_top;
         // Populate sample frames
         for (int i = 0; i < 625; i++) begin
             healthy_frame[i] = 8'd128; // Uniform healthy foliage
-            blight_frame[i]  = (i >= 250 && i <= 375) ? 8'd250 : 8'd50; // Disease blight pattern
+            blight_frame[i]  = (i >= 200 && i <= 400) ? 8'd250 : 8'd50; // Disease blight pattern
         end
 
         //---------------------------------------------------------------------
@@ -199,7 +199,7 @@ module tb_agri_drone_top;
             rst_n = 1;
             #20;
 
-            // Configure default weights: edge detector kernel with bias
+            // Configure Healthy Crop profile: Class 0 bias = 1000
             @(negedge clk);
             csr_wr_en = 1; csr_addr = 6'h0C; csr_wdata = 32'sd0;
             @(posedge clk);
@@ -211,6 +211,12 @@ module tb_agri_drone_top;
             @(posedge clk);
             @(negedge clk);
             csr_wr_en = 1; csr_addr = 6'h18; csr_wdata = {24'd0, -8'sd1};
+            @(posedge clk);
+            @(negedge clk);
+            csr_wr_en = 1; csr_addr = 6'h1C; csr_wdata = 32'sd1000; // bias0 = 1000
+            @(posedge clk);
+            @(negedge clk);
+            csr_wr_en = 1; csr_addr = 6'h20; csr_wdata = 32'sd0;    // bias1 = 0
             @(posedge clk);
             @(negedge clk);
             csr_wr_en = 0;
@@ -225,7 +231,7 @@ module tb_agri_drone_top;
 
             while (!saw_done) @(posedge clk);
             #1;
-            record_result("NORMAL", (disease_detected === 1'b0 && confidence >= 16'd128),
+            record_result("NORMAL", (disease_class === 2'd0 && disease_detected === 1'b0 && confidence >= 16'd128),
                           $sformatf("TC6: End-to-End Healthy Crop Inferred (Class: %0d, Detected: %0d, Conf: %0d)",
                           disease_class, disease_detected, confidence));
         end
@@ -234,6 +240,16 @@ module tb_agri_drone_top;
         // NORMAL TEST 7: Full End-to-End Leaf Blight Frame (Class 1, Disease Detected)
         //---------------------------------------------------------------------
         begin
+            // Configure Leaf Blight profile: Class 1 bias = 1000
+            @(negedge clk);
+            csr_wr_en = 1; csr_addr = 6'h1C; csr_wdata = 32'sd0;    // bias0 = 0
+            @(posedge clk);
+            @(negedge clk);
+            csr_wr_en = 1; csr_addr = 6'h20; csr_wdata = 32'sd1000; // bias1 = 1000 (Class 1 Blight)
+            @(posedge clk);
+            @(negedge clk);
+            csr_wr_en = 0;
+
             // Trigger Start for 2nd frame
             @(negedge clk);
             start = 1;
@@ -244,7 +260,7 @@ module tb_agri_drone_top;
 
             while (!saw_done) @(posedge clk);
             #1;
-            record_result("NORMAL", (disease_detected === 1'b1 && confidence >= 16'd128),
+            record_result("NORMAL", (disease_class === 2'd1 && disease_detected === 1'b1 && confidence >= 16'd128),
                           $sformatf("TC7: End-to-End Leaf Blight Inferred (Class: %0d, Detected: %0d, Conf: %0d)",
                           disease_class, disease_detected, confidence));
         end

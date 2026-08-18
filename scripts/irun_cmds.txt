@@ -5,7 +5,7 @@
 #==============================================================================
 
 # 0. Complete RTL Compilation Sanity Check (0 errors, 0 warnings verification)
-cd work && irun -sv -compile -messages -nocopyright \
+ irun -sv -compile -messages -nocopyright \
     ../rtl/defs/agri_drone_pkg.sv \
     ../rtl/control/power_icg_cell.sv \
     ../rtl/mem/axis_input_fifo.sv \

@@ -1,0 +1,37 @@
+# Cadence Simulation / irun / xcelium temp files
+INCA_libs/
+cov_work/
+*.history
+*.key
+*.diag
+*.shm/
+*.vcd
+*.fsdb
+*.dsn
+*.trn
+irun.log
+xrun.log
+ncverilog.log
+ncvlog.log
+ncelab.log
+ncsim.log
+.simvision/
+waves.shm/
+
+# Work directories temporary files
+work/INCA_libs/
+work/*.log
+work/*.key
+work/*.history
+
+# Cadence Genus / Synthesis logs & temporary DBs
+genus.log*
+genus.cmd*
+fv/
+genus_output/
+
+# OS / Editor temporary files
+.DS_Store
+Thumbs.db
+*~
+*.bak

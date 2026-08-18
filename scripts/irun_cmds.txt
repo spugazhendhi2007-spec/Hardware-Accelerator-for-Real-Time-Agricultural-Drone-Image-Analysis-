@@ -1,0 +1,2 @@
+# Cadence irun / xcelium Simulation Commands Master List
+# Execute from work/ directory: cd work && <command>

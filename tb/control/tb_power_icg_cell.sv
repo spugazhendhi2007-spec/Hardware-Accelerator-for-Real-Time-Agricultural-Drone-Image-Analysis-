@@ -101,12 +101,21 @@ module tb_power_icg_cell;
         //---------------------------------------------------------------------
         // NORMAL TEST 7: Multi-cycle continuous pass-through
         //---------------------------------------------------------------------
-        @(negedge clk);
-        en = 1;
-        repeat(4) @(posedge clk);
-        record_result("NORMAL", (gclk === 1'b1), "TC7: Multi-cycle continuous burst pass-through");
-        @(negedge clk);
-        en = 0;
+        begin
+            bit tc7_pass = 1;
+            @(negedge clk);
+            en = 1;
+            repeat(4) begin
+                @(posedge clk);
+                #1;
+                if (gclk !== 1'b1) tc7_pass = 0;
+                @(negedge clk);
+                #1;
+                if (gclk !== 1'b0) tc7_pass = 0;
+            end
+            record_result("NORMAL", tc7_pass, "TC7: Multi-cycle continuous burst pass-through");
+            en = 0;
+        end
 
         //---------------------------------------------------------------------
         // ULTIMATE STRESS TEST 8: Randomized 100-cycle stimulus verification
